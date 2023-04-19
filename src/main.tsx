@@ -5,6 +5,6 @@ import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <App xInit={20} yInit={20} />
+    <App xInit={100} yInit={100} />
   </React.StrictMode>,
 )

@@ -1,41 +1,54 @@
-import { GOLGrid, XVal, YVal, NewGridCallback } from '../types'
-import { GOLCell } from "./golCell"
-
+import { Cell, Grid, NewGridCallback } from '../types'
 /* TODO 
-
 - resize grid when props change
-
+- compare performance of concurrent grids vs. stringify and parse each time
 */
 
 export class GameOfLife {
-    currentGrid: GOLGrid
-    stagingGrid: GOLGrid
+    currentGrid: Grid
+    stagingGrid: Grid
     currentFrame: number
+    wrapGrid: boolean
     callbacks: NewGridCallback[]
     private intervalId?: number
 
-    constructor(xInit: XVal, yInit: YVal) {
-        this.currentGrid = {}
-        this.stagingGrid = {}
+    constructor(xInit: number, yInit: number) {
+        this.currentGrid = []
+        this.stagingGrid = []
         this.currentFrame = 0
+        this.wrapGrid = true
         this.callbacks = []
         this.intervalId = undefined
 
-        for (let x = 0; x < xInit; x++) {
-            this.currentGrid[x] = {}
-            this.stagingGrid[x] = {}
-
-            for (let y = 0; y < yInit; y++) {
-                this.currentGrid[x][y] = new GOLCell(this, x, y, false)
-                this.stagingGrid[x][y] = new GOLCell(this, x, y, false)
-            }
+        for (let i = 0; i < xInit; i++) {
+            this.currentGrid.push(Array(yInit).fill(0))
+            this.stagingGrid.push(Array(yInit).fill(0))
         }
+    }
+
+    toggleWrap(): void {
+        this.wrapGrid = !this.wrapGrid
+    }
+
+    copyGrid(): Grid {
+        return JSON.parse(JSON.stringify(this.currentGrid))
     }
 
     swapGrids(): void {
         const tempGrid = this.currentGrid
         this.currentGrid = this.stagingGrid
         this.stagingGrid = tempGrid
+    }
+
+    syncGrids(): void {
+        for (const x in this.currentGrid) {
+            const currentCol = this.currentGrid[x]
+            const stagingCol = this.stagingGrid[x]
+
+            for (const y in currentCol) {
+                stagingCol[y] = currentCol[y]
+            }
+        }
     }
 
     addCallback(callback: NewGridCallback): void {
@@ -55,10 +68,10 @@ export class GameOfLife {
 
     runFrame(): void {
         for (const x in this.currentGrid) {
-            const yMap = this.currentGrid[x]
+            const col = this.currentGrid[x]
 
-            for (const y in yMap) {
-                yMap[y].calculateNextState()
+            for (const y in col) {
+                this.calculateCellNextState(Number(x), Number(y))
             }
         }
 
@@ -68,32 +81,52 @@ export class GameOfLife {
     }
 
     start(intervalMs = 250): void {
+        if (this.intervalId) return
         this.intervalId = setInterval(() => this.runFrame(), intervalMs) as unknown as number
     }
 
     stop(): void {
         clearInterval(this.intervalId)
         this.intervalId = undefined
+        this.syncGrids()
     }
 
     reset(): void {
-        this.callbacks = []
+        this.stop()
+        this.callbacks.splice(0)
         this.currentFrame = 0
 
-        if (this.intervalId) {
-            this.stop()
-        }
+        for (const col of this.currentGrid) col.fill(0)
+        for (const col of this.stagingGrid) col.fill(0)
 
-        for (const grid of [this.currentGrid, this.stagingGrid]) {
-            for (const x in grid) {
-                const yMap = grid[x]
+        this.swapGrids()
+    }
+
+    toggleCellAlive(x: number, y: number): void {
+        this.currentGrid[x][y] = this.stagingGrid[x][y] = Number(!this.currentGrid[x][y]) as Cell
+        this.swapGrids()
+        this.runCallbacks()
+    }
+
+    calculateCellNextState(x: number, y: number) {
+        let aliveNeighbors = 0
     
-                for (const y in yMap) {
-                    yMap[y].alive = false
+        for (let i = x - 1; i <= x + 1; i++) {
+            for (let j = y - 1; j <= y + 1; j++) {
+                if (i === x && j === y) continue
+                
+                if (this.wrapGrid) {
+                    const wrappedX = i === -1 ? this.currentGrid.length - 1 : i === this.currentGrid.length ? 0 : i
+                    const wrappedY = j === -1 ? this.currentGrid[0].length - 1 : j === this.currentGrid[0].length ? 0 : j
+                    if (this.currentGrid[wrappedX][wrappedY]) aliveNeighbors++
+                } else {
+                    if (this.currentGrid[i]?.[j]) aliveNeighbors++
                 }
             }
         }
 
-        this.swapGrids()
+        this.stagingGrid[x][y] = Number(
+            this.currentGrid[x][y] ? [2, 3].includes(aliveNeighbors) : aliveNeighbors === 3
+        ) as Cell
     }
 }

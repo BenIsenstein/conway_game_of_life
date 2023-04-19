@@ -1,8 +1,5 @@
-import { GOLCell } from "../models"
+export type Cell = 0 | 1
 
-export type XVal = number
-export type YVal = number
+export type Grid = Cell[][]
 
-export type GOLGrid = Record<XVal, Record<YVal, GOLCell>>
-
-export type NewGridCallback = (newGrid: GOLGrid) => void
+export type NewGridCallback = (newGrid: Grid) => void
