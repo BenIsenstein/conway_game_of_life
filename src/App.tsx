@@ -1,41 +1,82 @@
-import { useEffect, useRef, useState } from 'react'
-import { GameOfLife } from './models'
-import { useMouseDown, useViewportDimensions } from './utils'
-import clsx from 'clsx'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { indexFromEvent, useMouseDown, usePaintWithArrowKeys } from 'utils'
+import { ArrowKeysModeButton, ToggleOnMoveButton, Cell } from 'components'
+import { GameOfLife } from 'models'
+import Slider from 'rc-slider'
+import 'rc-slider/assets/index.css'
 
 interface IProps {
   xInit: number
   yInit: number
 }
 
-function App({ xInit, yInit }: IProps) {
+export const App = ({ xInit, yInit }: IProps) => {
   const game = useRef(new GameOfLife(xInit, yInit)).current
-  const toggleCell = (e: React.MouseEvent) => game.toggleCellAlive(e.target.dataset.x, e.target.dataset.y)
-  const [grid, setGrid] = useState(game.currentGrid)
-  const { width, height } = useViewportDimensions()
+  const [updateQueue, setUpdateQueue] = useState(game.updateQueueA)
+  const [frameLengthMs, setFrameLengthMs] = useState(80)
   const mouseDown = useMouseDown()
-  const minSideLength = Math.min(width, height)
-  const frameLengthMs = 125
-  const gridElements: JSX.Element[] = []
-  
-  for (const x in grid) {
-    for (const y in grid[x]) {
-      gridElements.push(
-        <div
-          key={`x${x}y${y}`}
-          className={clsx('cursor-none', grid[x][y] ? 'bg-white' : 'bg-black hover:bg-gray-500')}
-          data-x={x}
-          data-y={y}
-          onClick={toggleCell}
-          onMouseOver={mouseDown ? toggleCell : undefined}
-        />
-      )
+  const arrowKeysState = usePaintWithArrowKeys(game)
+  const [ArrowKeysButton, setArrowKeysButton] = useState(null as unknown as JSX.Element)
+  const [ToggleMoveButton, setToggleMoveButton] = useState(null as unknown as JSX.Element)
+
+  if (!ArrowKeysButton) {
+    setArrowKeysButton(ArrowKeysModeButton(game, arrowKeysState, setArrowKeysButton))
+  }
+  if (!ToggleMoveButton) {
+    setToggleMoveButton(ToggleOnMoveButton(arrowKeysState, setToggleMoveButton))
+  }
+
+  const handleCellClick = useCallback((e: React.MouseEvent) => {
+    const i = indexFromEvent(e)
+
+    if (arrowKeysState.current.active) {
+      if (arrowKeysState.current.cursor !== null) {
+        game.enqueueUpdate(arrowKeysState.current.cursor)
+      }
+
+      arrowKeysState.current.cursor = i
+
+      if (arrowKeysState.current.toggleOnMove) {
+        game.toggleCellAlive(i)
+        return
+      }
+
+      game.enqueueUpdate(i)
+      game.swapUpdateQueues()
+      game.runCallbacks()
+      return
     }
+
+    game.toggleCellAlive(i)
+  }, [])
+
+  const handleCellMouseOver = useCallback((e: React.MouseEvent) => {
+    if (mouseDown.current) game.toggleCellAlive(indexFromEvent(e))
+  }, [])
+
+  const handleNewFrame = useCallback((game: GameOfLife) => {
+    setUpdateQueue(game.updateQueueA)
+  }, [])
+
+  const handleSliderChange = useCallback((val: number | number[]) => {
+    const newInterval = Array.isArray(val) ? val[0] : val
+    game.updateInterval(newInterval)
+    setFrameLengthMs(newInterval)
+  }, [])
+
+  const gridElements = useRef(
+    game.grid.map((cell, i) => Cell(i, arrowKeysState, cell, handleCellClick, handleCellMouseOver))
+  ).current
+
+  while (updateQueue.length) {
+    const i = game.dequeueUpdate()!
+    gridElements[i] = Cell(i, arrowKeysState, game.grid[i], handleCellClick, handleCellMouseOver)
   }
 
   useEffect(() => {
-    game.addCallback(setGrid)
-    return () => game.removeCallback(setGrid)
+    game.addCallback(handleNewFrame)
+
+    return () => game.removeCallback(handleNewFrame)
   }, [])
 
   return (
@@ -56,8 +97,8 @@ function App({ xInit, yInit }: IProps) {
         <button
           onClick={() => {
             game.reset()
-            game.addCallback(setGrid)
-            setGrid(game.currentGrid)
+            game.addCallback(handleNewFrame)
+            game.runCallbacks()
           }}
           className="mr-2 bg-purple-800 rounded-md text-white p-1"
         >
@@ -69,15 +110,26 @@ function App({ xInit, yInit }: IProps) {
         >
           FRAME++
         </button>
-        <span className="text-white">FRAME:&nbsp;{game.currentFrame}</span>
+        {ArrowKeysButton}
+        {ToggleMoveButton}
+        <span className="mr-2 text-white">FRAME:&nbsp;{game.currentFrame}&nbsp;|</span>
+        <span className="mr-2 text-white">FRAME LENGTH:&nbsp;{frameLengthMs}&nbsp;|</span>
+        <Slider
+          min={50}
+          max={1000}
+          step={10}
+          value={frameLengthMs}
+          onChange={handleSliderChange}
+          className="mr-2 w-40"
+        />
       </div>
       <div
         className="grid"
         style={{
           gridTemplateColumns: `repeat(${xInit}, 1fr)`,
           gridTemplateRows: `repeat(${yInit}, 1fr)`,
-          width: minSideLength,
-          height: minSideLength
+          width: 'min(100vw, 100vh)',
+          height: 'min(100vw, 100vh)'
         }}
       >
         {gridElements}
@@ -85,5 +137,3 @@ function App({ xInit, yInit }: IProps) {
     </div>
   )
 }
-
-export default App

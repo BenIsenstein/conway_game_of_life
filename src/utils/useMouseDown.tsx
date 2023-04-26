@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef } from "react"
 
 export const useMouseDown = () => {
-    const [mouseDown, setMouseDown] = useState(false)
+    const mouseDown = useRef(false)
 
     useEffect(() => {
-        const handleMouseDown = () => setMouseDown(true)
-        const handleMouseUp = () => setMouseDown(false)
+        const handleMouseDown = () => mouseDown.current = true
+        const handleMouseUp = () => mouseDown.current = false
 
         window.addEventListener('mousedown', handleMouseDown)
         window.addEventListener('mouseup', handleMouseUp)

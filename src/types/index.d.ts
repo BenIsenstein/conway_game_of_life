@@ -1,5 +1,3 @@
-export type Cell = 0 | 1
+import { GameOfLife } from "models"
 
-export type Grid = Cell[][]
-
-export type NewGridCallback = (newGrid: Grid) => void
+export type NewFrameCallback = (game: GameOfLife) => void

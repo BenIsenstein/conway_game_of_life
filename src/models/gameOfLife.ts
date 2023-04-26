@@ -1,87 +1,111 @@
-import { Cell, Grid, NewGridCallback } from '../types'
+import { NewFrameCallback } from 'types'
+import { createCellNeighborAddresses } from 'utils'
+
 /* TODO 
 - resize grid when props change
-- compare performance of concurrent grids vs. stringify and parse each time
+- add shapes from a library w drag and drop
 */
 
 export class GameOfLife {
-    currentGrid: Grid
-    stagingGrid: Grid
+    grid: boolean[]
+    stagingGrid: boolean[]
+    width: number
+    height: number
     currentFrame: number
     wrapGrid: boolean
-    callbacks: NewGridCallback[]
+    updateQueueA: number[]
+    private cellNeighborAddresses: number[]
+    private updateQueueB: number[]
+    private callbacks: NewFrameCallback[]
     private intervalId?: number
 
     constructor(xInit: number, yInit: number) {
-        this.currentGrid = []
-        this.stagingGrid = []
+        this.grid = Array(xInit * yInit).fill(false)
+        this.stagingGrid = Array(xInit * yInit).fill(false)
+        this.width = xInit
+        this.height = yInit
         this.currentFrame = 0
         this.wrapGrid = true
+        this.updateQueueA = []
+        this.updateQueueB = []
         this.callbacks = []
         this.intervalId = undefined
-
-        for (let i = 0; i < xInit; i++) {
-            this.currentGrid.push(Array(yInit).fill(0))
-            this.stagingGrid.push(Array(yInit).fill(0))
-        }
+        this.cellNeighborAddresses = createCellNeighborAddresses(this.height)
     }
 
     toggleWrap(): void {
         this.wrapGrid = !this.wrapGrid
     }
 
-    copyGrid(): Grid {
-        return JSON.parse(JSON.stringify(this.currentGrid))
+    loadFromGrid(newGrid: boolean[]): void {
+        // resize?
+        this.grid = newGrid
+        this.syncGrids()
     }
 
     swapGrids(): void {
-        const tempGrid = this.currentGrid
-        this.currentGrid = this.stagingGrid
+        const tempGrid = this.grid
+        this.grid = this.stagingGrid
         this.stagingGrid = tempGrid
     }
 
     syncGrids(): void {
-        for (const x in this.currentGrid) {
-            const currentCol = this.currentGrid[x]
-            const stagingCol = this.stagingGrid[x]
-
-            for (const y in currentCol) {
-                stagingCol[y] = currentCol[y]
-            }
+        for (const cell in this.grid) {
+            this.stagingGrid[cell] = this.grid[cell]
         }
     }
 
-    addCallback(callback: NewGridCallback): void {
+    swapUpdateQueues(): void {
+        const tempQueue = this.updateQueueA
+        this.updateQueueA = this.updateQueueB
+        this.updateQueueB = tempQueue
+    }
+
+    enqueueUpdate(i: number) {
+        this.updateQueueA.push(i)
+        this.updateQueueB.push(i)
+    }
+
+    dequeueUpdate(): number | undefined {
+        this.updateQueueB.shift()
+        return this.updateQueueA.shift()
+    }
+
+    addCallback(callback: NewFrameCallback): void {
         this.callbacks.push(callback)
     }
 
-    removeCallback(callback: NewGridCallback): void {
+    removeCallback(callback: NewFrameCallback): void {
         const callbackIndex = this.callbacks.indexOf(callback)
         this.callbacks.splice(callbackIndex, 1)
     }
 
     runCallbacks(): void {
         for (const callback of this.callbacks) {
-            callback(this.currentGrid)
+            callback(this)
         }
     }
 
     runFrame(): void {
-        for (const x in this.currentGrid) {
-            const col = this.currentGrid[x]
-
-            for (const y in col) {
-                this.calculateCellNextState(Number(x), Number(y))
-            }
+        for (const i in this.grid) {
+            this.calculateCellNextState(Number(i))
         }
 
-        this.currentFrame++
+        this.swapUpdateQueues()
         this.swapGrids()
+
+        this.currentFrame++
         this.runCallbacks()
     }
-
+    
     start(intervalMs = 250): void {
         if (this.intervalId) return
+        this.intervalId = setInterval(() => this.runFrame(), intervalMs) as unknown as number
+    }
+
+    updateInterval(intervalMs: number): void {
+        if (!this.intervalId) return
+        clearInterval(this.intervalId)
         this.intervalId = setInterval(() => this.runFrame(), intervalMs) as unknown as number
     }
 
@@ -96,37 +120,40 @@ export class GameOfLife {
         this.callbacks.splice(0)
         this.currentFrame = 0
 
-        for (const col of this.currentGrid) col.fill(0)
-        for (const col of this.stagingGrid) col.fill(0)
+        for (const i in this.grid) {
+            if (!this.grid[i]) continue
 
-        this.swapGrids()
+            this.grid[i] = this.stagingGrid[i] = false
+            this.enqueueUpdate(Number(i))
+        }
+
+        this.swapUpdateQueues()
     }
 
-    toggleCellAlive(x: number, y: number): void {
-        this.currentGrid[x][y] = this.stagingGrid[x][y] = Number(!this.currentGrid[x][y]) as Cell
-        this.swapGrids()
+    toggleCellAlive(i: number): void {
+        this.grid[i] = this.stagingGrid[i] = !this.grid[i]
+        this.enqueueUpdate(i)
+        this.swapUpdateQueues()
         this.runCallbacks()
     }
 
-    calculateCellNextState(x: number, y: number) {
+    calculateCellNextState(i: number) {
         let aliveNeighbors = 0
-    
-        for (let i = x - 1; i <= x + 1; i++) {
-            for (let j = y - 1; j <= y + 1; j++) {
-                if (i === x && j === y) continue
-                
-                if (this.wrapGrid) {
-                    const wrappedX = i === -1 ? this.currentGrid.length - 1 : i === this.currentGrid.length ? 0 : i
-                    const wrappedY = j === -1 ? this.currentGrid[0].length - 1 : j === this.currentGrid[0].length ? 0 : j
-                    if (this.currentGrid[wrappedX][wrappedY]) aliveNeighbors++
-                } else {
-                    if (this.currentGrid[i]?.[j]) aliveNeighbors++
-                }
-            }
+
+        for (const address of this.cellNeighborAddresses) {
+            let index = i + address
+            if (index < 0) index = this.grid.length + index
+            if (index >= this.grid.length) index = index - this.grid.length
+            if (this.grid[index]) aliveNeighbors++
         }
 
-        this.stagingGrid[x][y] = Number(
-            this.currentGrid[x][y] ? [2, 3].includes(aliveNeighbors) : aliveNeighbors === 3
-        ) as Cell
+        const currentValue = this.grid[i]
+        const nextValue = currentValue ? [2, 3].includes(aliveNeighbors) : aliveNeighbors === 3
+
+        this.stagingGrid[i] = nextValue
+
+        if (nextValue !== currentValue) {
+            this.enqueueUpdate(i)
+        }
     }
 }
