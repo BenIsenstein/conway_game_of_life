@@ -2,10 +2,6 @@ import React from 'react'
 import clsx from 'clsx'
 import { usePaintWithArrowKeys } from 'utils'
 
-/* TODO
-- make flashing animation based on cursor status
-*/
-
 export const Cell = (
   i: number,
   { current: { cursor, active }}: ReturnType<typeof usePaintWithArrowKeys>,
@@ -19,8 +15,9 @@ export const Cell = (
     onClick={handleClick}
     onMouseOver={handleMouseOver}
     className={clsx(
-      'cursor-none hover:bg-gray-500',
-      active && cursor === i ? 'bg-red-500' : alive ? 'bg-white' : 'bg-black'
+      'cursor-none hover:bg-gray-400',
+      alive ? 'bg-white' : 'bg-black',
+      active && cursor === i ? 'animate-cursor' : ''
     )}
   />
 )

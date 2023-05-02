@@ -6,15 +6,14 @@ const KEY_CODES = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ']
 export const usePaintWithArrowKeys = (game: GameOfLife) => {
     const state = useRef({
         active: false,
-        cursor: null as null | number,
-        toggleOnMove: false
+        cursor: game.height * Math.floor(game.width * 0.25) + Math.floor(game.height * 0.25),
+        paintOnMove: false
     })
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (!KEY_CODES.includes(e.key)) return
             if (!state.current.active) return
-            if (state.current.cursor === null) return
 
             const prevCursor = state.current.cursor
             let nextCursor: number
@@ -44,15 +43,15 @@ export const usePaintWithArrowKeys = (game: GameOfLife) => {
 
             state.current.cursor = nextCursor
 
-            if (state.current.toggleOnMove) {
-                game.enqueueUpdate(prevCursor)
+            if (state.current.paintOnMove) {
+                game.pushUpdate(prevCursor)
                 game.toggleCellAlive(nextCursor)
                 return
             }
 
-            game.enqueueUpdate(prevCursor)
-            game.enqueueUpdate(nextCursor)
-            game.swapUpdateQueues()
+            game.pushUpdate(prevCursor)
+            game.pushUpdate(nextCursor)
+            game.swapUpdateStacks()
             game.runCallbacks()
         }
 

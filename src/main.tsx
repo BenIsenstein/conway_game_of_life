@@ -1,7 +1,7 @@
 import ReactDOM from 'react-dom/client'
-import { App } from 'App'
+import { GameOfLifeReact } from 'GameOfLifeReact'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <App xInit={100} yInit={100} />
+  <GameOfLifeReact xInit={100} yInit={100} />
 )
