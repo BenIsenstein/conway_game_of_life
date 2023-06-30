@@ -1,20 +1,22 @@
-import React from 'react'
+import { useState } from 'react'
 import { GameOfLife } from 'models'
 
-export const WrappedWorldButton = (
-    game: GameOfLife,
-    setSelf: React.Dispatch<React.SetStateAction<JSX.Element>>
-) => (
+interface IProps {
+  game: GameOfLife
+}
+
+export const WrappedWorldButton = ({ game }: IProps) => {
+  const [wrapGrid, setWrapGrid] = useState(game.wrapGrid)
+
+  return (
     <button
-        onClick={() => {
-            game.toggleWrap()
-            setSelf(WrappedWorldButton(game, setSelf))
-        }}
-        className="bg-blue-800 hover:bg-blue-600 active:bg-blue-500 rounded-md text-white p-1"
+      onClick={() => {
+        game.toggleWrap()
+        setWrapGrid(game.wrapGrid)
+      }}
+      className="bg-blue-800 hover:bg-blue-600 active:bg-blue-500 rounded-md text-white p-1"
     >
-        {game.wrapGrid
-            ? 'WRAP WORLD: ON'
-            : 'WRAP WORLD: OFF'
-        }
+      WRAP WORLD:{wrapGrid ? ' ON' : ' OFF'}
     </button>
-)
+  )
+}

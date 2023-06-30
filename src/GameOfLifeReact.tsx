@@ -1,99 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { indexFromEvent, useMouseDown, usePaintWithArrowKeys } from 'utils'
-import { ArrowKeysModeButton, PaintOnMoveButton, Cell } from 'components'
-import { GameOfLife } from 'models'
+import { useCanvasEventHandlers } from 'utils'
+import {
+  ArrowKeysModeButton,
+  PaintOnMoveButton,
+  WrappedWorldButton,
+} from 'components'
 import Slider from 'rc-slider'
 import 'rc-slider/assets/index.css'
-import { WrappedWorldButton } from 'components/WrappedWorldButton'
-
-interface IProps {
-  xInit: number
-  yInit: number
-}
 
 const REPO_URL = 'https://github.com/BenIsenstein/conway_game_of_life'
 
-export const GameOfLifeReact = ({ xInit, yInit }: IProps) => {
-  const game = useRef(new GameOfLife(xInit, yInit)).current
-  const [updateQueue, setUpdateQueue] = useState(game.updateStack)
-  const [frameLengthMs, setFrameLengthMs] = useState(game.frameLengthMs)
-  const mouseDown = useMouseDown()
-  const arrowKeysState = usePaintWithArrowKeys(game)
-  const [ArrowKeysButton, setArrowKeysButton] = useState(null as unknown as JSX.Element)
-  const [PaintMoveButton, setPaintMoveButton] = useState(null as unknown as JSX.Element)
-  const [WrapWorldButton, setWrapWorldButton] = useState(null as unknown as JSX.Element)
-
-  if (!ArrowKeysButton && !PaintMoveButton && !WrapWorldButton) {
-    setArrowKeysButton(ArrowKeysModeButton(game, arrowKeysState, setArrowKeysButton))
-    setPaintMoveButton(PaintOnMoveButton(arrowKeysState, setPaintMoveButton))
-    setWrapWorldButton(WrappedWorldButton(game, setWrapWorldButton))
-  }
-
-  const handleCellClick = useCallback((e: React.MouseEvent) => {
-    const i = indexFromEvent(e)
-
-    if (arrowKeysState.current.active) {
-      game.pushUpdate(arrowKeysState.current.cursor)
-      arrowKeysState.current.cursor = i
-
-      if (arrowKeysState.current.paintOnMove) {
-        game.toggleCellAlive(i)
-        return
-      }
-
-      game.pushUpdate(i)
-      game.swapUpdateStacks()
-      game.runCallbacks()
-      return
-    }
-
-    game.toggleCellAlive(i)
-  }, [])
-
-  const handleCellMouseOver = useCallback((e: React.MouseEvent) => {
-    if (mouseDown.current) {
-      game.toggleCellAlive(indexFromEvent(e))
-    }
-  }, [])
-
-  const handleNewFrame = useCallback((game: GameOfLife) => {
-    setUpdateQueue(game.updateStack)
-  }, [])
-
-  const handleSliderChange = useCallback((val: number | number[]) => {
-    const newInterval = Array.isArray(val) ? val[0] : val
-    game.updateInterval(newInterval)
-    setFrameLengthMs(newInterval)
-  }, [])
-
-  const gridElements = useRef(
-    game.grid.map((cell, i) => Cell(i, arrowKeysState, cell, handleCellClick, handleCellMouseOver))
-  ).current
-
-  while (updateQueue.length) {
-    const i = game.popUpdate()!
-    gridElements[i] = Cell(i, arrowKeysState, game.grid[i], handleCellClick, handleCellMouseOver)
-  }
-
-  useEffect(() => {
-    game.addCallback(handleNewFrame)
-
-    return () => game.removeCallback(handleNewFrame)
-  }, [])
+export const GameOfLifeReact = () => {
+  const {
+    game,
+    currentFrame,
+    fps,
+    gameDimensions,
+    arrowKeysState,
+    initCanvas,
+    handleCellClick,
+    handleCellMouseOver,
+    handleMouseLeave,
+    handleSliderChange,
+    handleNewFrame,
+    updateWidth,
+    updateHeight,
+  } = useCanvasEventHandlers()
 
   return (
     <div className="box-border flex w-screen h-screen gap-3 p-4 bg-gray-400">
-      <div
-        className="grid"
-        style={{
-          gridTemplateColumns: `repeat(${xInit}, 1fr)`,
-          gridTemplateRows: `repeat(${yInit}, 1fr)`,
-          width: 'calc(min(100vw, 100vh) - 2rem)',
-          height: 'calc(min(100vw, 100vh) - 2rem)'
-        }}
+      <canvas
+        className="bg-black cursor-none"
+        ref={initCanvas}
+        onMouseMove={handleCellMouseOver}
+        onMouseLeave={handleMouseLeave}
+        onMouseDown={handleCellClick}
       >
-        {gridElements}
-      </div>
+        John Conway's Game of Life, implemented in TypeScript and React
+      </canvas>
       <div className="flex flex-col flex-wrap items-start gap-3">
         <button
           onClick={() => game.start()}
@@ -130,29 +73,63 @@ export const GameOfLifeReact = ({ xInit, yInit }: IProps) => {
           >
             FRAME++
           </button>
-          <span className="text-white">FRAME #{game.currentFrame}</span>
+          <span className="text-white">FRAME #{currentFrame}</span>
         </div>
-        {WrapWorldButton}
-        {ArrowKeysButton}
-        {PaintMoveButton}
+        <WrappedWorldButton game={game} />
+        <ArrowKeysModeButton game={game} arrowKeysState={arrowKeysState} />
+        <PaintOnMoveButton arrowKeysState={arrowKeysState} />
         <div className="flex gap-3 items-center">
           <Slider
-            min={50}
-            max={1000}
-            step={10}
-            value={frameLengthMs}
+            min={1}
+            max={60}
+            step={1}
+            value={fps}
             onChange={handleSliderChange}
             className="w-40"
           />
-          <span className="text-white">FRAME LENGTH:&nbsp;{frameLengthMs}ms</span>
+          <span className="text-white">Frame Rate:&nbsp;{fps}fps</span>
+        </div>
+        <div className="flex gap-3 items-center">
+          <input
+            type="number"
+            min={1}
+            className="w-20"
+            value={gameDimensions.xInit}
+            onChange={updateWidth}
+          />
+          <span className="text-white">
+            Game Width:&nbsp;{gameDimensions.xInit}
+          </span>
+        </div>
+        <div className="flex gap-3 items-center">
+          <input
+            type="number"
+            min={1}
+            className="w-20"
+            value={gameDimensions.yInit}
+            onChange={updateHeight}
+          />
+          <span className="text-white">
+            Game Height:&nbsp;{gameDimensions.yInit}
+          </span>
         </div>
         <h2 className="text-blue-800 text-2xl font-bold mt-16">Tips</h2>
-        <hr className="border-blue-800 border-1 w-full"/>
+        <hr className="border-blue-800 border-1 w-full" />
         <ul className="text-white">
           <li>- Paint by clicking cells, or holding mouse and dragging</li>
-          <li>- With "paint with arrow keys", spacebar to toggle cells or select "paint on move"</li>
-          <li>- With "wrap world", choose whether the game world's edges connect</li>
-          <li>- See source code: <a className="text-white hover:text-blue-600" href={REPO_URL}>{REPO_URL}</a></li>
+          <li>
+            - With "paint with arrow keys", spacebar to toggle cells or select
+            "paint on move"
+          </li>
+          <li>
+            - With "wrap world", choose whether the game world's edges connect
+          </li>
+          <li>
+            - See source code:{' '}
+            <a className="text-white hover:text-blue-600" href={REPO_URL}>
+              {REPO_URL}
+            </a>
+          </li>
         </ul>
       </div>
     </div>

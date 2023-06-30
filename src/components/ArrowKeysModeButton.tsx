@@ -1,27 +1,30 @@
-import React from 'react'
+import { useState } from 'react'
 import { GameOfLife } from 'models'
-import { usePaintWithArrowKeys } from 'utils'
+import { IArrowKeysState } from 'types'
 
-export const ArrowKeysModeButton = (
-    game: GameOfLife,
-    arrowKeysState: ReturnType<typeof usePaintWithArrowKeys>,
-    setSelf: React.Dispatch<React.SetStateAction<JSX.Element>>
-) => (
+interface IProps {
+  game: GameOfLife
+  arrowKeysState: IArrowKeysState
+}
+
+export const ArrowKeysModeButton = (props: IProps) => {
+  const { game, arrowKeysState } = props
+  const [active, setActive] = useState(arrowKeysState.active)
+
+  return (
     <button
-        onClick={() => {
-            arrowKeysState.current.active = !arrowKeysState.current.active
+      onClick={() => {
+        arrowKeysState.active = !arrowKeysState.active
 
-            if (arrowKeysState.current.cursor !== null) {
-                game.pushUpdate(arrowKeysState.current.cursor)
-            }
-            
-            setSelf(ArrowKeysModeButton(game, arrowKeysState, setSelf))
-        }}
-        className="bg-blue-800 hover:bg-blue-600 active:bg-blue-500 rounded-md text-white p-1"
-    >
-        {arrowKeysState.current.active
-            ? 'PAINT WITH ARROW KEYS: ON'
-            : 'PAINT WITH ARROW KEYS: OFF'
+        if (arrowKeysState.cursor !== null) {
+          game.pushUpdate(arrowKeysState.cursor)
+          game.runCallbacks()
+          setActive(arrowKeysState.active)
         }
+      }}
+      className="bg-blue-800 hover:bg-blue-600 active:bg-blue-500 rounded-md text-white p-1"
+    >
+      {active ? 'PAINT WITH ARROW KEYS: ON' : 'PAINT WITH ARROW KEYS: OFF'}
     </button>
-)
+  )
+}
