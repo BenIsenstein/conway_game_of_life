@@ -1,6 +1,5 @@
-export * from './useMouseDown'
 export * from './createCellNeighborAddresses'
-export * from './usePaintWithArrowKeys'
 export * from './indexFromEvent'
 export * from './getStageSideLength'
 export * from './useCanvasEventHandlers'
+export * from './noop'

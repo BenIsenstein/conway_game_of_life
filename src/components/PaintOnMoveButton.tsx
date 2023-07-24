@@ -1,18 +1,24 @@
 import { useState } from 'react'
-import { IArrowKeysState } from 'types'
+import { EditorMode } from 'types'
 
 interface IProps {
-  arrowKeysState: IArrowKeysState
+  editorMode: React.MutableRefObject<EditorMode>
 }
 
-export const PaintOnMoveButton = ({ arrowKeysState }: IProps) => {
-  const [paintOnMove, setPaintOnMove] = useState(arrowKeysState.paintOnMove)
+export const PaintOnMoveButton = ({ editorMode }: IProps) => {
+  const [paintOnMove, setPaintOnMove] = useState(
+    editorMode.current === EditorMode.ARROW_KEYS_PAINT_ON_MOVE
+  )
 
   return (
     <button
       onClick={() => {
-        arrowKeysState.paintOnMove = !arrowKeysState.paintOnMove
-        setPaintOnMove(arrowKeysState.paintOnMove)
+        editorMode.current = paintOnMove
+          ? EditorMode.ARROW_KEYS_PAINT_WITH_SPACE
+          : EditorMode.ARROW_KEYS_PAINT_ON_MOVE
+        setPaintOnMove(
+          editorMode.current === EditorMode.ARROW_KEYS_PAINT_ON_MOVE
+        )
       }}
       className="bg-blue-800 hover:bg-blue-600 active:bg-blue-500 rounded-md text-white p-1"
     >

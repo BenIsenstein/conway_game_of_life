@@ -1,7 +1,7 @@
 import React from 'react'
-import { GameOfLife } from 'models'
+import { Camera2D, GameOfLife } from 'models'
 
-export const indexFromEventHOF = (game: GameOfLife) => {
+export const indexFromEventHOF = (game: GameOfLife, camera: Camera2D) => {
   const indexFromEvent = (
     e: React.MouseEvent<HTMLCanvasElement, MouseEvent>
   ) => {
@@ -15,18 +15,22 @@ export const indexFromEventHOF = (game: GameOfLife) => {
 
     if (canvasX < 0 || canvasY < 0) return -1
 
-    const cellWidth = Math.round(canvas.width / game.width) || 1
-    const cellHeight = Math.round(canvas.height / game.height) || 1
-    const rawColumn = canvasX / cellWidth
-    const rawRow = canvasY / cellHeight
+    const cellWidth = canvas.width / camera.sideLength
+    const cellHeight = canvas.height / camera.sideLength
+    const rawColumn = canvasX / cellWidth + camera.x
+    const rawRow = canvasY / cellHeight + camera.y
     const column =
-      rawColumn <= 0
-        ? 0
+      rawColumn <= camera.x
+        ? camera.x
         : rawColumn % 1 > 0
         ? Math.floor(rawColumn)
         : rawColumn - 1
     const row =
-      rawRow <= 0 ? 0 : rawRow % 1 > 0 ? Math.floor(rawRow) : rawRow - 1
+      rawRow <= camera.y
+        ? camera.y
+        : rawRow % 1 > 0
+        ? Math.floor(rawRow)
+        : rawRow - 1
     const index = row * game.width + column
 
     return index

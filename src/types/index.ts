@@ -19,13 +19,14 @@ export interface ISavedGameOfLife {
   history: number[][]
 }
 
-export interface IArrowKeysState {
-  active: boolean
-  cursor: number
-  paintOnMove: boolean
-}
-
 export interface IHoverState {
   previous: number | null
   current: number | null
+}
+
+export enum EditorMode {
+  MOUSE_PAINT,
+  ARROW_KEYS_PAINT_WITH_SPACE,
+  ARROW_KEYS_PAINT_ON_MOVE,
+  NAVIGATE,
 }
