@@ -5,5 +5,5 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {},
-  plugins: []
+  plugins: [require('@headlessui/tailwindcss')]
 }

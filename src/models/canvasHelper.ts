@@ -51,10 +51,9 @@ export class CanvasHelper {
   originFromIndex(i: number): [number, number] {
     const leftFromGameLeft = i! % this.game.width
     const topFromGameTop = Math.floor(i! / this.game.width)
-
     const x = (leftFromGameLeft - this.camera.x) * this.cellWidth
     const y = (topFromGameTop - this.camera.y) * this.cellHeight
-
+    
     return [x, y]
   }
 
@@ -76,10 +75,7 @@ export class CanvasHelper {
   }
 
   drawCellGameState(i: number) {
-    const isPaintWithArrowKeys = (
-      this.editorMode.current === EditorMode.ARROW_KEYS_PAINT_WITH_SPACE ||
-      this.editorMode.current === EditorMode.ARROW_KEYS_PAINT_ON_MOVE
-    )
+    const isPaintWithArrowKeys = this.editorMode.current === EditorMode.ARROW_KEYS_PAINT_WITH_SPACE || this.editorMode.current === EditorMode.ARROW_KEYS_PAINT_ON_MOVE
 
     if (this.hoverState.current === i) {
       this.setColor(COLORS.hover)
@@ -101,20 +97,14 @@ export class CanvasHelper {
   commitNewFrame() {
     while (this.game.updateStack.length) {
       const i = this.game.popUpdate()!
-
-      if (this.camera.isIndexInCamera(i)) {
-        this.drawCellGameState(i)
-      }
+      if (this.camera.isIndexInCamera(i)) this.drawCellGameState(i)
     }
   }
 
   rePaintGame() {
     this.clearGame()
-
     for (let i = 0; i < this.game.grid.length; i++) {
-      if (this.camera.isIndexInCamera(i)) {
-        this.drawCellGameState(i)
-      }
+      if (this.camera.isIndexInCamera(i)) this.drawCellGameState(i)
     }
   }
 }

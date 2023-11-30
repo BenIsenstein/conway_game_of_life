@@ -1,0 +1,20 @@
+.slider {
+    @apply w-40;
+}
+
+.rc-slider-rail {
+    @apply bg-white;
+}
+
+.rc-slider-track {
+    @apply bg-zinc-500;
+
+}
+
+.rc-slider-handle:hover {
+    @apply border-zinc-950;
+}
+
+.rc-slider-handle-dragging.rc-slider-handle-dragging.rc-slider-handle-dragging {
+    @apply border-zinc-950 shadow-[0_0_0_3px_rgba(0,0,0,0.3)] shadow-zinc-950;
+}

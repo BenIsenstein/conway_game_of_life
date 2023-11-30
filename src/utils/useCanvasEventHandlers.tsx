@@ -2,38 +2,44 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { NOOP, indexFromEventHOF, stageSideLengthJS } from 'utils'
 import { Camera2D, CanvasHelper, GameOfLife } from 'models'
 import { IHoverState, EditorMode } from 'types'
-import { useMouseDown } from '.'
 
 type CanvasMouseEvent = React.MouseEvent<HTMLCanvasElement, MouseEvent>
 type CanvasScrollEvent = React.WheelEvent<HTMLCanvasElement>
 
 const PAINT_KEY_CODES = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ']
 const NAVIGATE_KEY_CODES = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
+const GAME_INIT_DIMENSIONS = { __type: 'NEW' as const, xInit: 200, yInit: 200 }
+const game = new GameOfLife(GAME_INIT_DIMENSIONS)
+const camera = new Camera2D(game)
+const minimapCamera = new Camera2D(game, game.width)
+const indexFromEvent = indexFromEventHOF(game, camera)
 
 export const useCanvasEventHandlers = () => {
-  const [gameDimensions, setGameDimensions] = useState({
-    __type: 'NEW' as const,
-    xInit: 100,
-    yInit: 100,
-  })
-  const game = useMemo(() => new GameOfLife(gameDimensions), [])
-  const camera = useMemo(() => new Camera2D(game), [game])
-  const minimapCamera = useMemo(() => new Camera2D(game, game.width), [game])
+  const [gameDimensions, setGameDimensions] = useState(GAME_INIT_DIMENSIONS)
   const [canvasHelper, setCanvasHelper] = useState<CanvasHelper>()
   const [minimapHelper, setMinimapHelper] = useState<CanvasHelper>()
   const [currentFrame, setCurrentFrame] = useState(game.currentFrame)
   const [fps, setFps] = useState(1000 / game.frameLengthMs)
-  const mouseDown = useMouseDown()
   const hoverState = useRef<IHoverState>({
     previous: null,
     current: null,
   }).current
   const editorMode = useRef<EditorMode>(EditorMode.MOUSE_PAINT)
   const arrowKeysCursor = useRef(camera.getLowestIndex())
-  const indexFromEvent = useMemo(
-    () => indexFromEventHOF(game, camera),
-    [game, camera]
-  )
+  const mouseDown = useRef(false)
+
+  useEffect(() => {
+    const handleMouseDown = () => (mouseDown.current = true)
+    const handleMouseUp = () => (mouseDown.current = false)
+
+    window.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
 
   const initCanvas = useCallback(
     (canvas: HTMLCanvasElement | null) => {
@@ -50,12 +56,14 @@ export const useCanvasEventHandlers = () => {
         )
       )
     },
-    [game, camera]
+    []
   )
 
   const initMinimap = useCallback(
     (canvas: HTMLCanvasElement | null) => {
       if (!canvas) return
+
+      const dpr = window.devicePixelRatio || 1
 
       const helper = new CanvasHelper(
         canvas,
@@ -64,8 +72,8 @@ export const useCanvasEventHandlers = () => {
         editorMode,
         arrowKeysCursor,
         hoverState,
-        300,
-        300
+        400 / dpr,
+        400 / dpr
       )
 
       helper?.setColor('rgb(156, 163, 175, 0.4)')
@@ -78,7 +86,7 @@ export const useCanvasEventHandlers = () => {
 
       setMinimapHelper(helper)
     },
-    [game, minimapCamera, camera]
+    []
   )
 
   const handleSliderChange = useCallback((val: number | number[]) => {
@@ -169,7 +177,7 @@ export const useCanvasEventHandlers = () => {
       camera.sideLength / game.width * minimapHelper?.canvas.width!,
       camera.sideLength / game.height * minimapHelper?.canvas.height!,
     )
-  }, [minimapHelper, camera, game])
+  }, [minimapHelper])
 
   const eventHandlers = useMemo(() => {
     const clearHover = () => {
@@ -440,7 +448,7 @@ export const useCanvasEventHandlers = () => {
     }
 
     return map
-  }, [game, indexFromEvent, canvasHelper, camera, rePaintMinimap])
+  }, [canvasHelper, rePaintMinimap])
 
   const handleScroll = useCallback(
     (e: CanvasScrollEvent) => {
@@ -486,7 +494,7 @@ export const useCanvasEventHandlers = () => {
         setCurrentFrame(game.currentFrame)
       }
     },
-    [canvasHelper, game, rePaintMinimap]
+    [canvasHelper, rePaintMinimap]
   )
 
   useEffect(() => {
@@ -520,7 +528,7 @@ export const useCanvasEventHandlers = () => {
   useEffect(() => {
     game.addCallback(handleNewFrame)
     return () => game.removeCallback(handleNewFrame)
-  }, [game, handleNewFrame])
+  }, [handleNewFrame])
 
   return {
     game,

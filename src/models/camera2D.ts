@@ -1,9 +1,6 @@
 import { GameOfLife } from './gameOfLife'
 
-const backupSideLengthFromSmallestSide = (smallestSide: number) => {
-  return Math.ceil(Math.sqrt(smallestSide))
-}
-
+const backupSideLengthFromSmallestSide = (smallestSide: number) => Math.ceil(Math.sqrt(smallestSide))
 const STEP_TO_SIDELENGTH_RATIO = 0.02
 const SIDELENGTH_GROWTH_FACTOR = 1.02
 
@@ -17,8 +14,7 @@ export class Camera2D {
   constructor(game: GameOfLife, sideLength?: number) {
     const smallestSide = Math.min(game.width, game.height)
     const backupSideLength = backupSideLengthFromSmallestSide(smallestSide)
-    const sidelengthInvalid =
-      !sideLength || sideLength <= 0 || sideLength > smallestSide
+    const sidelengthInvalid = !sideLength || sideLength <= 0 || sideLength > smallestSide
     const sl = sidelengthInvalid ? backupSideLength : sideLength
 
     this.game = game
@@ -33,10 +29,7 @@ export class Camera2D {
   }
 
   getHighestIndex() {
-    return (
-      this.game.width * Math.floor(this.y + this.sideLength) +
-      Math.floor(this.x + this.sideLength)
-    )
+    return this.game.width * Math.floor(this.y + this.sideLength) + Math.floor(this.x + this.sideLength)
   }
 
   isIndexInCamera(index: number) {
@@ -72,14 +65,10 @@ export class Camera2D {
 
   moveUp(step = this.step) {
     if (this.y - step >= 0) {
-      this.y -= step
-
-      if (this.y < 0) {
-        this.y = 0
-      }
-    } else if (this.y > 0) {
-      this.y = 0
+      this.y = Math.max(this.y - step, 0)
+      return
     }
+    if (this.y > 0) this.y = 0
   }
 
   moveDown(step = this.step) {
@@ -89,21 +78,19 @@ export class Camera2D {
       if (this.y + this.sideLength > this.game.height) {
         this.y = this.game.height - this.sideLength
       }
-    } else if (this.y + this.sideLength < this.game.height) {
+      return
+    }
+    if (this.y + this.sideLength < this.game.height) {
       this.y = this.game.height - this.sideLength
     }
   }
 
   moveLeft(step = this.step) {
     if (this.x - step >= 0) {
-      this.x -= step
-
-      if (this.x < 0) {
-        this.x = 0
-      }
-    } else if (this.x > 0) {
-      this.x = 0
+      this.x = Math.max(this.x - step, 0)
+      return
     }
+    if (this.x > 0) this.x = 0
   }
 
   moveRight(step = this.step) {
@@ -113,7 +100,9 @@ export class Camera2D {
       if (this.x + this.sideLength > this.game.width) {
         this.x = this.game.width - this.sideLength
       }
-    } else if (this.x + this.sideLength < this.game.width) {
+      return
+    }
+    if (this.x + this.sideLength < this.game.width) {
       this.x = this.game.width - this.sideLength
     }
   }
@@ -123,14 +112,10 @@ export class Camera2D {
   }
 
   zoomIn() {
-    const sideLengthDelta =
-      this.sideLength * (1 - 1 / SIDELENGTH_GROWTH_FACTOR)
+    const sideLengthDelta = this.sideLength * (1 - 1 / SIDELENGTH_GROWTH_FACTOR)
 
     if (this.sideLength - sideLengthDelta >= 1) {
-      this.sideLength -= sideLengthDelta
-      if (this.sideLength < 1) {
-        this.sideLength = 1
-      }
+      this.sideLength = Math.max(this.sideLength - sideLengthDelta, 1)
       this.y += sideLengthDelta / 2
       this.x += sideLengthDelta / 2
       this.syncStepSize()
@@ -142,11 +127,7 @@ export class Camera2D {
     const smallerSide = Math.min(this.game.width, this.game.height)
 
     if (this.sideLength + sideLengthDelta <= smallerSide) {
-      this.sideLength += sideLengthDelta
-
-      if (this.sideLength > smallerSide) {
-        this.sideLength = smallerSide
-      }
+      this.sideLength = Math.min(this.sideLength + sideLengthDelta, smallerSide)
     } else if (this.sideLength < smallerSide) {
       sideLengthDelta = smallerSide - this.sideLength
       this.sideLength = smallerSide
@@ -158,26 +139,19 @@ export class Camera2D {
       bottom: this.y + this.sideLength > this.game.height,
       left: this.x < 0
     }
+    let anyEdgeColliding = false
 
-    if ((Object.keys(edgesColliding) as ['top', 'right', 'bottom', 'left']).some((key) => edgesColliding[key])) {
-      if (edgesColliding.right) {
-        this.x = this.game.width - this.sideLength
-      }
-      if (edgesColliding.bottom) {
-        this.y = this.game.height - this.sideLength
-      }
+    for (const key in edgesColliding) {
+      // @ts-ignore
+      if (edgesColliding[key]) anyEdgeColliding = true
+    }
+
+    if (anyEdgeColliding) {
+      if (edgesColliding.right) this.x = this.game.width - this.sideLength
+      if (edgesColliding.bottom) this.y = this.game.height - this.sideLength
     } else {
-      if (this.y - sideLengthDelta / 2 >= 0) {
-        this.y -= sideLengthDelta / 2
-      } else if (this.y > 0) {
-        this.y = 0
-      }
-
-      if (this.x - sideLengthDelta / 2 >= 0) {
-        this.x -= sideLengthDelta / 2
-      } else if (this.x > 0) {
-        this.x = 0
-      }
+      this.y = Math.max(this.y - sideLengthDelta / 2, 0)
+      this.x = Math.max(this.x - sideLengthDelta / 2, 0)
     }
 
     this.syncStepSize()

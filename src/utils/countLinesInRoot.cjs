@@ -7,6 +7,7 @@ const DIR_IGNORE = [
     'node_modules',
     '.git',
     'package-lock.json',
+    'bun.lockb'
 ]
 
 const countLinesInRoot = (root) => {
